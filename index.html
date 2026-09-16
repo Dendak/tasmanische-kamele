@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tasmanische Kamele</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#191634;
+    --dusk:#2E2150;
+    --plum:#5A2C5C;
+    --ember:#F06A3C;
+    --basalt:#2A2230;
+    --stone:#4A3F4E;
+    --amber:#FFB547;
+    --teal:#6FD6C8;
+    --paper:#F6F0FF;
+    --muted:#B9ADC9;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  body{
+    margin:0;
+    background:var(--night);
+    color:var(--paper);
+    font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;
+    line-height:1.5;
+  }
+  main{max-width:1100px;margin:0 auto;padding:28px 20px 48px}
+
+  .intro h1{
+    font-size:clamp(2.2rem,5.5vw,3.8rem);
+    font-weight:800;
+    line-height:1;
+    letter-spacing:-.025em;
+    margin:0 0 .35em;
+  }
+  .intro p{max-width:64ch;margin:0 0 .6em;color:var(--muted)}
+  .intro strong{color:var(--paper);font-weight:600}
+  .sw{display:inline-block;width:.8em;height:.8em;border-radius:50%;vertical-align:-.05em;margin-right:.25em}
+  .sw.l{background:var(--amber)} .sw.r{background:var(--teal)}
+
+  .scene{
+    position:relative;
+    width:100%;
+    margin:22px 0 18px;
+    border-radius:20px;
+    overflow:hidden;
+    background:
+      radial-gradient(1.5px 1.5px at 8% 14%, #fff9 50%, transparent 51%),
+      radial-gradient(1px 1px at 23% 30%, #fff8 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 41% 9%, #fffa 50%, transparent 51%),
+      radial-gradient(1px 1px at 57% 24%, #fff7 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 72% 12%, #fff9 50%, transparent 51%),
+      radial-gradient(1px 1px at 88% 28%, #fff8 50%, transparent 51%),
+      radial-gradient(1px 1px at 94% 7%, #fff7 50%, transparent 51%),
+      linear-gradient(180deg, var(--night) 0%, var(--dusk) 45%, var(--plum) 72%, #A5424A 86%, var(--ember) 100%);
+  }
+  .sun{
+    position:absolute;
+    right:7%;
+    bottom:20%;
+    width:10%;
+    aspect-ratio:1;
+    border-radius:50%;
+    background:radial-gradient(circle, #FFD58A 0%, #FF9A4D 55%, #F06A3C 100%);
+    box-shadow:0 0 60px 20px #F06A3C55;
+    opacity:.85;
+  }
+  .ledge{
+    position:absolute;
+    left:0;right:0;bottom:0;
+    height:26%;
+    background:linear-gradient(180deg, var(--stone) 0%, var(--basalt) 18%, #1B1520 100%);
+    clip-path:polygon(0 0,100% 0,100% 55%,96% 62%,91% 58%,85% 74%,78% 66%,70% 82%,63% 70%,55% 88%,47% 72%,40% 84%,33% 68%,26% 80%,18% 64%,11% 76%,5% 60%,0 68%);
+  }
+  .tiles{
+    position:absolute;
+    left:0;right:0;
+    bottom:calc(26% - 1.9em);
+    display:grid;
+    grid-template-columns:repeat(var(--size), 1fr);
+    height:1.9em;
+  }
+  .tile{
+    display:flex;align-items:center;justify-content:center;
+    margin:0 6%;
+    border-radius:0 0 10px 10px;
+    font-size:clamp(.7rem,1.6vw,.95rem);
+    font-weight:600;
+    color:#FFFFFF80;
+    border-top:3px solid #FFFFFF26;
+  }
+  .tile.empty{
+    color:var(--night);
+    background:#FFD58ACC;
+    border-top-color:#FFD58A;
+  }
+
+  .camels{position:absolute;inset:0 0 26% 0}
+  .camel{
+    position:absolute;
+    bottom:-2px;
+    width:calc(100% / var(--size));
+    padding:0;
+    border:0;
+    background:none;
+    cursor:pointer;
+    left:0;
+    will-change:transform;
+    font:inherit;
+    border-radius:12px;
+  }
+  .camel.hint svg{filter:drop-shadow(0 0 10px #fff) drop-shadow(0 0 4px #fff)}
+  .camel:focus-visible{outline:3px solid var(--paper);outline-offset:2px}
+  .camel.l{color:var(--amber)}
+  .camel.r{color:var(--teal)}
+  .hop,.shake{display:block}
+  .hop{position:relative;transform-origin:50% 100%}
+  .camel svg{display:block;width:92%;margin:0 auto;overflow:visible}
+  .camel.r svg{transform:scaleX(-1)}
+  .camel .num{
+    position:absolute;
+    left:40%;top:50%;
+    transform:translate(-50%,-50%);
+    font-weight:800;
+    font-size:clamp(.65rem,1.7vw,1.05rem);
+    color:var(--night);
+    pointer-events:none;
+  }
+  .camel.r .num{left:60%}
+  .camel:not(.movable) svg{filter:saturate(.55) brightness(.8)}
+  .camel.movable::before{
+    content:"";
+    position:absolute;
+    top:-14%;
+    left:50%;
+    width:0;height:0;
+    border-top:7px solid transparent;
+    border-bottom:7px solid transparent;
+    transform:translateX(-50%);
+  }
+  .camel.l.movable::before{border-left:11px solid var(--amber)}
+  .camel.r.movable::before{border-right:11px solid var(--teal)}
+
+
+  .status{
+    min-height:3.2em;
+    font-size:clamp(1rem,2vw,1.2rem);
+    margin:0 0 14px;
+    max-width:70ch;
+  }
+  .status.win{color:#FFD58A;font-weight:600}
+  .status.warn{color:#FF9C85}
+
+  .panel{
+    display:grid;
+    grid-template-columns:1fr minmax(240px,320px);
+    gap:28px;
+    align-items:start;
+  }
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+  button.btn{
+    font:inherit;
+    font-weight:600;
+    padding:.55em 1.1em;
+    border-radius:999px;
+    border:2px solid #FFFFFF40;
+    background:transparent;
+    color:var(--paper);
+    cursor:pointer;
+  }
+  button.btn:hover:not(:disabled){border-color:var(--paper)}
+  button.btn.primary{background:var(--paper);color:var(--night);border-color:var(--paper)}
+  button.btn:disabled{opacity:.4;cursor:default}
+  button.btn:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+  .counter{font-size:1.05rem;margin-right:auto}
+  .counter b{font-size:1.6rem;font-weight:800;margin-right:.15em}
+  .settings{display:flex;flex-direction:column;gap:8px;color:var(--muted)}
+  .settings label{display:flex;gap:.5em;align-items:center;cursor:pointer}
+  select{
+    font:inherit;
+    background:var(--dusk);
+    color:var(--paper);
+    border:2px solid #FFFFFF40;
+    border-radius:8px;
+    padding:.2em .4em;
+  }
+  input[type=checkbox]{width:1.1em;height:1.1em;accent-color:var(--amber)}
+
+  .teacher-tools{
+    padding:12px 14px;
+    border:2px dashed #FFD58A80;
+    border-radius:14px;
+  }
+  .teacher-tools span{color:#FFD58A;font-weight:600;margin-right:auto}
+  dialog{
+    background:var(--dusk);
+    color:var(--paper);
+    border:2px solid #FFFFFF40;
+    border-radius:16px;
+    padding:22px 24px;
+    width:min(92vw,360px);
+  }
+  dialog::backdrop{background:#0008}
+  dialog h2{margin:0 0 .3em;font-size:1.3rem}
+  dialog p{margin:0 0 .8em;color:var(--muted)}
+  dialog input[type=password]{
+    width:100%;
+    font:inherit;
+    padding:.5em .7em;
+    border-radius:10px;
+    border:2px solid #FFFFFF40;
+    background:var(--night);
+    color:var(--paper);
+  }
+  dialog .error{color:#FF9C85;min-height:1.5em;margin:.4em 0 .6em}
+  dialog .row{justify-content:flex-end;margin:0}
+  .log h2{font-size:1.1rem;font-weight:600;margin:0 0 .4em}
+  .log ol{
+    margin:0;
+    padding-left:2.2em;
+    max-height:260px;
+    overflow-y:auto;
+    color:var(--muted);
+    font-size:.95rem;
+  }
+  .log li::marker{color:#FFFFFF60}
+  .log .empty-note{color:#FFFFFF60;font-size:.95rem;margin:0}
+  .log .l{color:var(--amber)} .log .r{color:var(--teal)}
+
+  @media (max-width:760px){
+    .panel{grid-template-columns:1fr}
+    .ledge{height:30%}
+    .camels{inset:0 0 30% 0}
+    .tiles{bottom:calc(30% - 1.9em)}
+  }
+</style>
+</head>
+<body>
+<main>
+  <section class="intro">
+    <h1>Tasmanische Kamele</h1>
+    <p>Auf einem schmalen Felsvorsprung treffen sich zwei Karawanen. <strong><span class="sw l"></span>Gelb</strong> will nach rechts, <strong><span class="sw r"></span>Blau</strong> nach links. Dazwischen ist genau ein freier Platz.</p>
+    <p>Klicke ein Kamel an: Es geht einen Schritt nach vorne, wenn dort frei ist, oder springt über <strong>ein</strong> Kamel, wenn dahinter frei ist. Rückwärts geht kein Kamel. Ziel: Alle gelben stehen rechts, alle blauen links.</p>
+  </section>
+
+  <div class="scene" id="scene">
+    <div class="sun" aria-hidden="true"></div>
+    <div class="ledge" aria-hidden="true"></div>
+    <div class="tiles" id="tiles" aria-hidden="true"></div>
+    <div class="camels" id="camels"></div>
+  </div>
+
+  <p class="status" id="status" aria-live="polite"></p>
+
+  <div class="panel">
+    <div>
+      <div class="row">
+        <span class="counter"><b id="moves">0</b> Züge</span>
+        <button class="btn" id="undo">Rückgängig</button>
+        <button class="btn primary" id="reset">Neu starten</button>
+      </div>
+      <div class="row teacher-tools" id="teacherTools" hidden>
+        <span>Lehrermodus aktiv</span>
+        <button class="btn" id="hint">Tipp</button>
+        <button class="btn" id="demo">Lösung vorführen</button>
+        <button class="btn" id="lock">Lehrermodus beenden</button>
+      </div>
+      <div class="settings">
+        <label>Kamele pro Gruppe
+          <select id="count">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4" selected>4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="showMoves" checked> Kamele markieren, die sich bewegen können</label>
+        <label><input type="checkbox" id="warnDead"> Warnen, sobald es keine Lösung mehr gibt</label>
+        <p style="margin:6px 0 0"><button class="btn" id="teacher">Lehrermodus</button></p>
+      </div>
+    </div>
+
+    <div class="log">
+      <h2>Zugprotokoll</h2>
+      <p class="empty-note" id="logEmpty">Noch keine Züge.</p>
+      <ol id="log"></ol>
+    </div>
+  </div>
+</main>
+
+<dialog id="pwDialog">
+  <form id="pwForm">
+    <h2>Lehrermodus</h2>
+    <p>Mit dem Passwort werden Tipp und Lösung freigeschaltet.</p>
+    <input type="password" id="pwInput" autocomplete="off" aria-label="Passwort">
+    <p class="error" id="pwError" aria-live="polite"></p>
+    <div class="row">
+      <button type="button" class="btn" id="pwCancel">Abbrechen</button>
+      <button type="submit" class="btn primary">Freischalten</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  // Passwort ändern: in der Browser-Konsole kameleHash('neuesPasswort') eingeben
+  // und den ausgegebenen Wert hier eintragen.
+  const PASSWORD_HASH = '6f649a50a623917b31960e5c05fd7bd79bb9e37ebc75a8fce6b803d29b02ed71';
+
+  function sha256(str) {
+    const bytes = new TextEncoder().encode(str);
+    const K = [], H = [];
+    const isPrime = x => { for (let i = 2; i * i <= x; i++) if (x % i === 0) return false; return true; };
+    const frac = x => ((x - Math.floor(x)) * 4294967296) | 0;
+    for (let p = 2, c = 0; c < 64; p++) {
+      if (!isPrime(p)) continue;
+      if (c < 8) H[c] = frac(Math.sqrt(p));
+      K[c++] = frac(Math.cbrt(p));
+    }
+    const len = bytes.length;
+    const buf = new Uint8Array(((len + 9 + 63) >> 6) << 6);
+    buf.set(bytes); buf[len] = 0x80;
+    const dv = new DataView(buf.buffer);
+    dv.setUint32(buf.length - 8, Math.floor(len * 8 / 4294967296));
+    dv.setUint32(buf.length - 4, (len * 8) >>> 0);
+    const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+    const W = new Int32Array(64);
+    for (let off = 0; off < buf.length; off += 64) {
+      for (let i = 0; i < 16; i++) W[i] = dv.getInt32(off + i * 4);
+      for (let i = 16; i < 64; i++) {
+        const x = W[i - 15], y = W[i - 2];
+        W[i] = (W[i - 16] + (rotr(x, 7) ^ rotr(x, 18) ^ (x >>> 3)) + W[i - 7] + (rotr(y, 17) ^ rotr(y, 19) ^ (y >>> 10))) | 0;
+      }
+      let [a, b, c, d, e, f, g, h] = H;
+      for (let i = 0; i < 64; i++) {
+        const t1 = (h + (rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + W[i]) | 0;
+        const t2 = (t1 + (rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0;
+        h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = t2;
+      }
+      [a, b, c, d, e, f, g, h].forEach((v, i) => { H[i] = (H[i] + v) | 0; });
+    }
+    return H.map(v => (v >>> 0).toString(16).padStart(8, '0')).join('');
+  }
+  window.kameleHash = sha256;
+
+  const CAMEL_SVG = `
+    <svg viewBox="0 0 100 82" aria-hidden="true">
+      <path d="M11 42 C4 46 3 56 6 62" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+      <path fill="currentColor" stroke="#191634" stroke-width="1.5" stroke-linejoin="round"
+        d="M10 44 C10 35 17 31 24 32 C29 14 40 14 44 30 C48 17 59 17 62 32
+           C68 33 71 29 73 21 L75 12 C77 7 86 7 90 11 L95 15 C96 18 94 20 91 19 L85 18
+           C83 27 81 40 73 46 L71 80 L66 80 L66 52 L62 52 L61 80 L56 80 L55 50
+           L31 50 L28 80 L23 80 L23 53 L19 53 L17 80 L12 80 L12 50 C10 49 9 47 10 44 Z"/>
+      <circle cx="84" cy="12.5" r="1.4" fill="#191634"/>
+    </svg>`;
+
+  const $ = id => document.getElementById(id);
+  const scene = $('scene'), camelLayer = $('camels'), tilesEl = $('tiles');
+  const statusEl = $('status'), movesEl = $('moves'), logEl = $('log'), logEmpty = $('logEmpty');
+  const undoBtn = $('undo'), resetBtn = $('reset'), hintBtn = $('hint'), demoBtn = $('demo');
+  const teacherBtn = $('teacher'), lockBtn = $('lock'), teacherTools = $('teacherTools');
+  const pwDialog = $('pwDialog'), pwForm = $('pwForm'), pwInput = $('pwInput'), pwError = $('pwError');
+  const countSel = $('count'), showMoves = $('showMoves'), warnDead = $('warnDead');
+
+  const NAMES = { L: 'Gelb', R: 'Blau' };
+  let n, size, camels, history, deadStates, goalKey, demoTimer = null;
+
+  const label = c => `${NAMES[c.side]} ${c.num}`;
+
+  function setup(count) {
+    stopDemo();
+    n = count;
+    size = 2 * n + 1;
+    deadStates = new Set();
+    goalKey = 'R'.repeat(n) + '_' + 'L'.repeat(n);
+    history = [];
+    camels = [];
+    for (let i = 0; i < n; i++) camels.push({ side: 'L', num: n - i, pos: i });
+    for (let i = 0; i < n; i++) camels.push({ side: 'R', num: i + 1, pos: n + 1 + i });
+
+    scene.style.setProperty('--size', size);
+    scene.style.aspectRatio = `${size} / ${window.innerWidth < 760 ? 3.4 : 2.3}`;
+
+    tilesEl.innerHTML = '';
+    for (let i = 0; i < size; i++) {
+      const t = document.createElement('div');
+      t.className = 'tile';
+      t.textContent = i + 1;
+      tilesEl.appendChild(t);
+    }
+
+    camelLayer.innerHTML = '';
+    camels.forEach(c => {
+      const b = document.createElement('button');
+      b.className = `camel ${c.side.toLowerCase()}`;
+      b.innerHTML = `<span class="hop"><span class="shake">${CAMEL_SVG}</span><span class="num">${c.num}</span></span>`;
+      b.addEventListener('click', () => { if (!demoTimer) play(c); });
+      c.el = b;
+      camelLayer.appendChild(b);
+    });
+
+    logEl.innerHTML = '';
+    update();
+    setStatus('Klicke ein Kamel an, um es zu bewegen.');
+  }
+
+  function board() {
+    const b = Array(size).fill(null);
+    camels.forEach(c => { b[c.pos] = c; });
+    return b;
+  }
+
+  function stateKey() {
+    return board().map(c => c ? c.side : '_').join('');
+  }
+
+  function moveFor(c, b = board()) {
+    const d = c.side === 'L' ? 1 : -1;
+    const next = c.pos + d, over = c.pos + 2 * d;
+    if (next < 0 || next >= size)
+      return { ok: false, why: `${label(c)} ist schon am Ende des Felsvorsprungs.` };
+    if (!b[next]) return { ok: true, to: next, jump: false };
+    if (over < 0 || over >= size)
+      return { ok: false, why: `${label(c)} kann nicht springen: Dahinter ist der Abgrund.` };
+    if (!b[over]) return { ok: true, to: over, jump: true, over: b[next] };
+    return { ok: false, why: `${label(c)} kommt nicht weiter: Direkt vor ihm stehen zwei Kamele.` };
+  }
+
+  // Tiefensuche: liefert eine Zugfolge [[von, nach], ...] oder null
+  function solve(key) {
+    if (key === goalKey) return [];
+    if (deadStates.has(key)) return null;
+    const s = key.split('');
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] === '_') continue;
+      const d = s[i] === 'L' ? 1 : -1;
+      for (const step of [1, 2]) {
+        const t = i + d * step;
+        if (t < 0 || t >= s.length || s[t] !== '_') continue;
+        const ns = s.slice();
+        ns[t] = s[i]; ns[i] = '_';
+        const rest = solve(ns.join(''));
+        if (rest) return [[i, t], ...rest];
+      }
+    }
+    deadStates.add(key);
+    return null;
+  }
+
+  function play(c) {
+    const m = moveFor(c);
+    clearHint();
+    if (!m.ok) {
+      c.el.querySelector('.shake').animate([
+        { transform: 'translateX(0)' },
+        { transform: 'translateX(-6%)' },
+        { transform: 'translateX(6%)' },
+        { transform: 'translateX(-3%)' },
+        { transform: 'translateX(0)' }
+      ], { duration: 380, easing: 'ease-in-out' });
+      setStatus(m.why, 'warn');
+      return false;
+    }
+    const from = c.pos;
+    history.push({ camel: c, from, to: m.to });
+    c.pos = m.to;
+    addLog(c, from, m.to, m.jump ? m.over : null);
+    update();
+    animateMove(c, from, m.to);
+    evaluate();
+    return true;
+  }
+
+  function undo() {
+    const last = history.pop();
+    if (!last) return;
+    clearHint();
+    const c = last.camel;
+    c.pos = last.from;
+    logEl.lastElementChild?.remove();
+    update();
+    animateMove(c, last.to, last.from);
+    evaluate();
+  }
+
+  // Flüssige Bewegung mit der Web Animations API:
+  // Schritt = gemütliches Wiegen, Sprung = Anlauf, Bogen, Landung.
+  function animateMove(c, from, to) {
+    const hop = c.el.querySelector('.hop');
+    c.el.getAnimations().forEach(a => a.cancel());
+    hop.getAnimations().forEach(a => a.cancel());
+    const x = p => `translateX(${p * 100}%)`;
+    const dir = Math.sign(to - from);
+    const jump = Math.abs(to - from) === 2;
+    c.el.style.zIndex = jump ? 3 : 2;
+
+    let move;
+    if (jump) {
+      const dur = 950;
+      move = c.el.animate([
+        { transform: x(from), offset: 0 },
+        { transform: x(from), offset: .14, easing: 'cubic-bezier(.4,0,.6,1)' },
+        { transform: x(to), offset: .86 },
+        { transform: x(to), offset: 1 }
+      ], { duration: dur });
+      hop.animate([
+        { transform: 'translateY(0) scale(1, 1)', offset: 0, easing: 'ease-out' },
+        { transform: 'translateY(0) scale(1.05, .88)', offset: .14, easing: 'cubic-bezier(.2,.6,.4,1)' },
+        { transform: `translateY(-85%) rotate(${-7 * dir}deg) scale(1, 1)`, offset: .5, easing: 'cubic-bezier(.6,0,.8,.4)' },
+        { transform: 'translateY(0) scale(1.06, .86)', offset: .86, easing: 'ease-out' },
+        { transform: 'translateY(0) scale(1, 1)', offset: 1 }
+      ], { duration: dur });
+    } else {
+      const dur = 720;
+      move = c.el.animate(
+        [{ transform: x(from) }, { transform: x(to) }],
+        { duration: dur, easing: 'cubic-bezier(.45,.05,.35,1)' }
+      );
+      hop.animate([
+        { transform: 'translateY(0) rotate(0deg)' },
+        { transform: 'translateY(-7%) rotate(-2.5deg)', offset: .25 },
+        { transform: 'translateY(0) rotate(0deg)', offset: .5 },
+        { transform: 'translateY(-7%) rotate(2.5deg)', offset: .75 },
+        { transform: 'translateY(0) rotate(0deg)' }
+      ], { duration: dur, easing: 'ease-in-out' });
+    }
+    move.onfinish = () => { c.el.style.zIndex = ''; };
+  }
+
+  function update() {
+    const b = board();
+    camels.forEach(c => {
+      c.el.style.transform = `translateX(${c.pos * 100}%)`;
+      const m = moveFor(c, b);
+      const can = m.ok;
+      c.el.classList.toggle('movable', can && showMoves.checked);
+      c.el.setAttribute('aria-label',
+        `${label(c)} auf Feld ${c.pos + 1}` + (can ? (m.jump ? `, kann auf Feld ${m.to + 1} springen` : `, kann auf Feld ${m.to + 1} gehen`) : ', kann sich nicht bewegen'));
+    });
+    [...tilesEl.children].forEach((t, i) => t.classList.toggle('empty', !b[i]));
+    movesEl.textContent = history.length;
+    logEmpty.hidden = history.length > 0;
+    undoBtn.disabled = history.length === 0 || !!demoTimer;
+    hintBtn.disabled = !!demoTimer;
+  }
+
+  function evaluate() {
+    const key = stateKey();
+    const best = n * (n + 2);
+    if (key === goalKey) {
+      const k = history.length;
+      setStatus(k <= best
+        ? `Geschafft in ${k} Zügen! Beide Karawanen ziehen weiter. Kürzer geht es nicht.`
+        : `Geschafft in ${k} Zügen! Beide Karawanen ziehen weiter.`, 'win');
+      return;
+    }
+    if (!camels.some(c => moveFor(c).ok)) {
+      setStatus('Sackgasse: Kein Kamel kann sich mehr bewegen. Mach Züge rückgängig oder starte neu.', 'warn');
+      return;
+    }
+    if (warnDead.checked && !solve(key)) {
+      setStatus('Achtung: Von hier aus kommen nicht mehr alle Kamele ans Ziel. Mach Züge rückgängig.', 'warn');
+      return;
+    }
+    if (!demoTimer) setStatus('Klicke ein Kamel an, um es zu bewegen.');
+  }
+
+  function addLog(c, from, to, over) {
+    const li = document.createElement('li');
+    const name = `<span class="${c.side.toLowerCase()}">${label(c)}</span>`;
+    li.innerHTML = over
+      ? `${name} springt über ${label(over)}: Feld ${from + 1} → ${to + 1}`
+      : `${name} geht: Feld ${from + 1} → ${to + 1}`;
+    logEl.appendChild(li);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function setStatus(text, kind = '') {
+    statusEl.textContent = text;
+    statusEl.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function clearHint() {
+    camels.forEach(c => c.el.classList.remove('hint'));
+  }
+
+  function hint() {
+    const key = stateKey();
+    if (key === goalKey) return;
+    const sol = solve(key);
+    clearHint();
+    if (!sol) {
+      setStatus('Von hier aus gibt es keine Lösung mehr. Mach Züge rückgängig, bis ein Tipp möglich ist.', 'warn');
+      return;
+    }
+    const c = board()[sol[0][0]];
+    c.el.classList.add('hint');
+    setStatus(`Tipp: Bewege ${label(c)}.`);
+  }
+
+  function startDemo() {
+    let sol = solve(stateKey());
+    let msg = 'Die Vorführung läuft …';
+    if (!sol || stateKey() === goalKey) {
+      setup(n);
+      sol = solve(stateKey());
+      msg = 'Von hier gab es keine Lösung mehr, daher startet die Vorführung von vorne.';
+    }
+    const queue = sol.slice();
+    demoTimer = setInterval(() => {
+      const next = queue.shift();
+      if (!next) { stopDemo(); evaluate(); return; }
+      play(board()[next[0]]);
+    }, 1150);
+    demoBtn.textContent = 'Vorführung stoppen';
+    setStatus(msg);
+    update();
+  }
+
+  function stopDemo() {
+    if (demoTimer) clearInterval(demoTimer);
+    demoTimer = null;
+    demoBtn.textContent = 'Lösung vorführen';
+    if (camels) update();
+  }
+
+  function setTeacher(on) {
+    teacherTools.hidden = !on;
+    teacherBtn.hidden = on;
+    if (!on) {
+      stopDemo();
+      clearHint();
+      evaluate();
+    }
+  }
+
+  teacherBtn.addEventListener('click', () => {
+    pwInput.value = '';
+    pwError.textContent = '';
+    pwDialog.showModal();
+    pwInput.focus();
+  });
+  $('pwCancel').addEventListener('click', () => pwDialog.close());
+  pwForm.addEventListener('submit', e => {
+    e.preventDefault();
+    if (sha256(pwInput.value) === PASSWORD_HASH) {
+      pwDialog.close();
+      setTeacher(true);
+    } else {
+      pwError.textContent = 'Falsches Passwort. Versuch es noch einmal.';
+      pwInput.select();
+    }
+  });
+  lockBtn.addEventListener('click', () => setTeacher(false));
+  hintBtn.addEventListener('click', hint);
+  demoBtn.addEventListener('click', () => demoTimer ? (stopDemo(), evaluate()) : startDemo());
+  undoBtn.addEventListener('click', undo);
+  resetBtn.addEventListener('click', () => setup(n));
+  countSel.addEventListener('change', () => setup(+countSel.value));
+  showMoves.addEventListener('change', update);
+  warnDead.addEventListener('change', evaluate);
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !demoTimer) { e.preventDefault(); undo(); }
+  });
+  window.addEventListener('resize', () => {
+    scene.style.aspectRatio = `${size} / ${window.innerWidth < 760 ? 3.4 : 2.3}`;
+  });
+
+  setup(4);
+})();
+</script>
+</body>
+</html>
