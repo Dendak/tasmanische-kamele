@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zwei Schnüre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  .lab{
+    margin:22px 0 18px;
+    padding:18px clamp(12px,3vw,28px) 22px;
+    border-radius:20px;
+    background:linear-gradient(180deg,#120F26,var(--dusk));
+  }
+  .clock{
+    display:flex;
+    align-items:baseline;
+    gap:.5em;
+    margin:0 0 6px;
+    color:var(--muted);
+  }
+  .clock b{font-size:clamp(1.6rem,4vw,2.4rem);font-weight:800;color:var(--paper);font-variant-numeric:tabular-nums}
+  .rope{margin:14px 0 6px}
+  .rope h2{font-size:1rem;margin:0;color:var(--muted);font-weight:600}
+  .rope svg{display:block;width:100%;height:auto;overflow:visible}
+  .ends{display:flex;justify-content:space-between;gap:10px}
+  .ends .btn{padding:.4em .9em;font-size:.95rem}
+  .flame{font-size:34px}
+  @media (max-width:560px){
+    .ends .btn{font-size:.8rem;padding:.35em .6em}
+  }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">← Alle Rätsel</a>
+  <section class="intro">
+    <h1>Zwei Schnüre</h1>
+    <p>Du hast zwei Schnüre. Jede brennt in <strong>genau 1 Stunde</strong> vollständig ab, aber <strong>ungleichmäßig</strong>: Manche Stellen brennen schnell, andere langsam. Eine Uhr hast du nicht.</p>
+    <p>Wie misst du <strong>45 Minuten</strong>? Zünde Enden an und klicke auf „Weiter warten“. Die Zeit läuft, bis eine Schnur abgebrannt ist. Nur dann kannst du wieder etwas tun.</p>
+  </section>
+
+  <div class="lab">
+    <p class="clock"><span>Vergangene Zeit:</span> <b id="clock">??</b></p>
+    <div class="rope" id="ropeA"></div>
+    <div class="rope" id="ropeB"></div>
+  </div>
+
+  <p class="status" id="status" aria-live="polite"></p>
+
+  <div class="row">
+    <button class="btn primary" id="run">Weiter warten</button>
+    <button class="btn" id="stop">Jetzt sind 45 Minuten vorbei</button>
+    <span class="grow"></span>
+    <button class="btn" id="reset">Neue Schnüre</button>
+    <button class="btn" id="teacher">Lehrermodus</button>
+  </div>
+
+  <div class="row teacher-tools" id="teacherTools" hidden>
+    <span class="label">Lehrermodus aktiv</span>
+    <button class="btn" id="showSolution">Lösung zeigen</button>
+    <button class="btn" id="demo">Lösung vorführen</button>
+    <button class="btn" id="showClock">Uhr einblenden</button>
+    <button class="btn" id="lock">Lehrermodus beenden</button>
+  </div>
+
+  <section class="solution" id="solution" hidden>
+    <h2>Lösung</h2>
+    <ol>
+      <li>Zünde gleichzeitig <strong>ein Ende</strong> der ersten Schnur und <strong>beide Enden</strong> der zweiten Schnur an.</li>
+      <li>Die zweite Schnur brennt von zwei Seiten und ist nach <strong>30 Minuten</strong> weg, egal wie ungleichmäßig sie brennt.</li>
+      <li>In diesem Moment zündest du das <strong>andere Ende</strong> der ersten Schnur an.</li>
+      <li>Vom ersten Seil ist noch Brennzeit für 30 Minuten übrig. Von zwei Seiten brennt es in <strong>15 Minuten</strong> ab.</li>
+      <li>Wenn die erste Schnur abgebrannt ist, sind 30 + 15 = 45 Minuten vergangen.</li>
+    </ol>
+    <p>Achte in der Simulation darauf: Die beiden Flammen treffen sich nach 30 Minuten, aber fast nie in der Mitte der Schnur.</p>
+  </section>
+</main>
+
+<script src="common.js"></script>
+<script>
+(() => {
+  const TOTAL = 60;
+  const SEG = 120;
+  const MS_PER_MIN = 110;
+  const W = 1000, HGT = 90, MID = 50;
+  const $ = id => document.getElementById(id);
+  const { wait } = Raetsel;
+  const statusEl = $('status'), clockEl = $('clock');
+  const runBtn = $('run'), stopBtn = $('stop'), resetBtn = $('reset'), demoBtn = $('demo');
+
+  let ropes, T, phase, clockVisible = false, demoRunning = false;
+
+  function makeRope(name, hostId) {
+    let raw = [], v = 1;
+    for (let i = 0; i < SEG; i++) {
+      v = Math.min(2.2, Math.max(0.25, v + (Math.random() - 0.5) * 0.7));
+      raw.push(v);
+    }
+    const sum = raw.reduce((a, b) => a + b, 0);
+    const w = raw.map(x => x * TOTAL / sum);
+    const cum = [0];
+    w.forEach((x, i) => cum.push(cum[i] + x));
+
+    const host = $(hostId);
+    const segW = W / SEG;
+    let rects = '';
+    w.forEach((x, i) => {
+      const th = 5 + (x / (TOTAL / SEG)) * 7;
+      const y = MID + Math.sin(i / 9) * 6 - th / 2;
+      rects += `<rect x="${(i * segW).toFixed(2)}" y="${y.toFixed(2)}" width="${(segW + 0.6).toFixed(2)}" height="${th.toFixed(2)}" />`;
+    });
+    host.innerHTML = `
+      <h2>${name}</h2>
+      <svg viewBox="-20 0 ${W + 40} ${HGT}" aria-hidden="true">
+        <g class="segs">${rects}</g>
+        <text class="flame fl" text-anchor="middle" y="${MID + 10}">🔥</text>
+        <text class="flame fr" text-anchor="middle" y="${MID + 10}">🔥</text>
+      </svg>
+      <div class="ends">
+        <button class="btn lightL">Linkes Ende anzünden</button>
+        <button class="btn lightR">Rechtes Ende anzünden</button>
+      </div>`;
+    const rope = {
+      name, w, cum,
+      rects: [...host.querySelectorAll('rect')],
+      fl: host.querySelector('.fl'),
+      fr: host.querySelector('.fr'),
+      btnL: host.querySelector('.lightL'),
+      btnR: host.querySelector('.lightR'),
+      litL: false, litR: false, tl: 0, tr: 0, doneAt: null
+    };
+    rope.btnL.addEventListener('click', () => { if (!demoRunning) light(rope, 'L'); });
+    rope.btnR.addEventListener('click', () => { if (!demoRunning) light(rope, 'R'); });
+    return rope;
+  }
+
+  // Position (0 bis 1), an der die Schnur nach t Minuten Brennzeit von links angekommen ist
+  function posFromLeft(rope, t) {
+    if (t <= 0) return 0;
+    if (t >= TOTAL) return 1;
+    let i = 0;
+    while (i < SEG - 1 && rope.cum[i + 1] <= t) i++;
+    return (i + (t - rope.cum[i]) / rope.w[i]) / SEG;
+  }
+
+  const done = r => r.tl + r.tr >= TOTAL - 1e-9;
+  const burning = r => !done(r) && (r.litL || r.litR);
+  const rate = r => (r.litL ? 1 : 0) + (r.litR ? 1 : 0);
+
+  function draw() {
+    ropes.forEach(r => {
+      const a = posFromLeft(r, r.tl);
+      const b = posFromLeft(r, TOTAL - r.tr);
+      const gone = done(r);
+      r.rects.forEach((el, i) => {
+        const x = (i + 0.5) / SEG;
+        const ash = gone || x < a || x > b;
+        el.setAttribute('fill', ash ? '#3A3350' : (i % 2 ? '#E8C990' : '#D9B77A'));
+      });
+      const showL = r.litL && !gone;
+      const showR = r.litR && !gone;
+      r.fl.setAttribute('x', a * W);
+      r.fr.setAttribute('x', b * W);
+      r.fl.style.display = showL ? '' : 'none';
+      r.fr.style.display = showR ? '' : 'none';
+      const canAct = phase === 'wait' && !demoRunning;
+      r.btnL.disabled = !canAct || r.litL || gone;
+      r.btnR.disabled = !canAct || r.litR || gone;
+      r.btnL.textContent = gone ? 'Abgebrannt' : r.litL ? 'Links brennt' : 'Linkes Ende anzünden';
+      r.btnR.textContent = gone ? 'Abgebrannt' : r.litR ? 'Rechts brennt' : 'Rechtes Ende anzünden';
+    });
+    const showTime = clockVisible || phase === 'end';
+    clockEl.textContent = showTime ? `${formatMin(T)} min` : '??';
+    runBtn.disabled = phase !== 'wait' || demoRunning;
+    stopBtn.disabled = phase !== 'wait' || demoRunning;
+    resetBtn.disabled = demoRunning;
+  }
+
+  function formatMin(t) {
+    const r = Math.round(t * 10) / 10;
+    return Number.isInteger(r) ? String(r) : r.toFixed(1).replace('.', ',');
+  }
+
+  function setStatus(text, kind = '') {
+    statusEl.textContent = text;
+    statusEl.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function reset() {
+    ropes = [makeRope('Schnur 1', 'ropeA'), makeRope('Schnur 2', 'ropeB')];
+    T = 0;
+    phase = 'wait';
+    draw();
+    setStatus('Noch brennt nichts. Welche Enden zündest du an?');
+  }
+
+  function light(rope, end) {
+    if (phase !== 'wait' || done(rope)) return;
+    if (end === 'L') rope.litL = true; else rope.litR = true;
+    draw();
+    setStatus(`${rope.name}: ${end === 'L' ? 'linkes' : 'rechtes'} Ende brennt.`);
+  }
+
+  async function run() {
+    if (phase !== 'wait') return;
+    const active = ropes.filter(burning);
+    if (!active.length) {
+      setStatus('Es brennt gerade nichts. Zünde zuerst ein Ende an.', 'warn');
+      return;
+    }
+    const dt = Math.min(...active.map(r => (TOTAL - r.tl - r.tr) / rate(r)));
+    phase = 'run';
+    setStatus('Die Schnüre brennen …');
+    const start = performance.now();
+    const T0 = T;
+    const base = active.map(r => ({ r, tl: r.tl, tr: r.tr }));
+    const dur = dt * MS_PER_MIN;
+    await new Promise(resolve => {
+      function frame(now) {
+        const e = Math.min(dt, (now - start) / MS_PER_MIN);
+        T = T0 + e;
+        base.forEach(({ r, tl, tr }) => {
+          if (r.litL) r.tl = tl + e;
+          if (r.litR) r.tr = tr + e;
+        });
+        draw();
+        if (now - start < dur) requestAnimationFrame(frame); else resolve();
+      }
+      requestAnimationFrame(frame);
+    });
+    T = T0 + dt;
+    base.forEach(({ r, tl, tr }) => {
+      if (r.litL) r.tl = tl + dt;
+      if (r.litR) r.tr = tr + dt;
+      if (Math.abs(r.tl + r.tr - TOTAL) < 1e-6) {
+        const over = r.tl + r.tr - TOTAL;
+        if (r.litR) r.tr -= over; else r.tl -= over;
+      }
+    });
+    const finished = base.filter(({ r }) => done(r)).map(({ r }) => r.name);
+    phase = 'wait';
+    draw();
+    const stillBurning = ropes.some(burning);
+    const which = finished.length === 2 ? 'Beide Schnüre sind' : `${finished[0]} ist`;
+    setStatus(`${which} gerade abgebrannt. ${stillBurning ? 'Willst du jetzt etwas anzünden?' : 'Nichts brennt mehr.'}`);
+  }
+
+  function stop() {
+    if (phase !== 'wait') return;
+    phase = 'end';
+    draw();
+    if (Math.abs(T - 45) < 1e-6) {
+      setStatus('Genau 45 Minuten! Du hast die Zeit ohne Uhr gemessen.', 'win');
+    } else if (T === 0) {
+      setStatus('Es ist noch gar keine Zeit vergangen. Starte mit „Neue Schnüre“ einen neuen Versuch.', 'warn');
+    } else {
+      setStatus(`Leider daneben: Es sind ${formatMin(T)} Minuten vergangen. Starte mit „Neue Schnüre“ einen neuen Versuch.`, 'warn');
+    }
+  }
+
+  async function runDemo() {
+    if (demoRunning) return;
+    reset();
+    demoRunning = true;
+    demoBtn.disabled = true;
+    const [a, b] = ropes;
+    const step = async (fn, msg) => { fn(); setStatus(msg); draw(); await wait(1100); };
+    await step(() => { a.litL = true; }, 'Schnur 1: ein Ende anzünden.');
+    await step(() => { b.litL = true; b.litR = true; }, 'Schnur 2: beide Enden gleichzeitig anzünden.');
+    phase = 'wait';
+    await run();
+    await wait(900);
+    await step(() => { a.litR = true; }, 'Schnur 2 ist weg, also sind 30 Minuten um. Jetzt das zweite Ende von Schnur 1 anzünden.');
+    phase = 'wait';
+    await run();
+    await wait(600);
+    demoRunning = false;
+    demoBtn.disabled = false;
+    stop();
+  }
+
+  runBtn.addEventListener('click', run);
+  stopBtn.addEventListener('click', stop);
+  resetBtn.addEventListener('click', () => { if (!demoRunning) reset(); });
+  demoBtn.addEventListener('click', runDemo);
+  const clockBtn = $('showClock');
+  clockBtn.addEventListener('click', () => {
+    clockVisible = !clockVisible;
+    clockBtn.textContent = clockVisible ? 'Uhr ausblenden' : 'Uhr einblenden';
+    draw();
+  });
+
+  const hideSolution = Raetsel.toggleSolution($('showSolution'), $('solution'));
+  Raetsel.initTeacher(on => {
+    if (!on) {
+      hideSolution();
+      clockVisible = false;
+      clockBtn.textContent = 'Uhr einblenden';
+      draw();
+    }
+  });
+
+  reset();
+})();
+</script>
+</body>
+</html>

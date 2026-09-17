@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Socken</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  .room{
+    display:grid;
+    grid-template-columns:minmax(200px,300px) 1fr;
+    gap:0;
+    margin:22px 0 18px;
+    border-radius:20px;
+    overflow:hidden;
+    min-height:240px;
+  }
+  .drawer{
+    position:relative;
+    background:#0A0916;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    padding:24px 16px;
+    text-align:center;
+  }
+  .drawer-box{
+    width:82%;
+    aspect-ratio:2.2;
+    border-radius:10px;
+    background:linear-gradient(180deg,#2A2037,#1C1628);
+    border:2px solid #3A3050;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#6E6488;
+    font-weight:600;
+    position:relative;
+  }
+  .drawer-box::after{
+    content:"";
+    position:absolute;
+    bottom:18%;
+    left:40%;right:40%;
+    height:6px;
+    border-radius:3px;
+    background:#4A3F63;
+  }
+  .drawer .left{color:#6E6488;font-size:.95rem;margin:0}
+  .table{
+    background:linear-gradient(180deg,var(--dusk),#3B2A55);
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+  }
+  .table h2{font-size:1.05rem;margin:0 0 10px;color:var(--muted);font-weight:600}
+  .socks{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:flex-end;
+    min-height:120px;
+  }
+  .sock{width:clamp(48px,7vw,70px);display:block}
+  .sock.pair{filter:drop-shadow(0 0 6px var(--good)) drop-shadow(0 0 2px var(--good))}
+  .empty-note{color:#FFFFFF60;margin:0}
+  .trials{color:var(--muted);margin:0 0 16px}
+  .trials b{color:var(--paper)}
+  @media (max-width:700px){
+    .room{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">← Alle Rätsel</a>
+  <section class="intro">
+    <h1>Socken</h1>
+    <p>Clara hat <strong>zwölf schwarze</strong> und <strong>zwölf weiße</strong> Socken in ihrer Schublade. Es ist völlig dunkel, sie sieht nicht, welche Farbe sie erwischt.</p>
+    <p>Wie viele Socken muss sie herausnehmen, um <strong>sicher</strong> ein passendes Paar zu haben? Probier es aus und gib dann deine Antwort ein.</p>
+  </section>
+
+  <div class="room">
+    <div class="drawer">
+      <div class="drawer-box" aria-hidden="true">Schublade</div>
+      <p class="left"><span id="left">24</span> Socken in der Schublade</p>
+      <button class="btn primary" id="draw">Socke ziehen</button>
+    </div>
+    <div class="table">
+      <h2>Gezogene Socken</h2>
+      <div class="socks" id="socks"><p class="empty-note">Noch keine Socke gezogen.</p></div>
+    </div>
+  </div>
+
+  <p class="status" id="status" aria-live="polite"></p>
+
+  <div class="row">
+    <label class="grow">Ziehen:
+      <select id="mode">
+        <option value="random">zufällig</option>
+        <option value="unlucky">mit größtmöglichem Pech</option>
+      </select>
+    </label>
+    <button class="btn" id="again">Socken zurücklegen</button>
+    <button class="btn" id="teacher">Lehrermodus</button>
+  </div>
+  <p class="trials" id="trials" hidden></p>
+
+  <section class="ask">
+    <h2>Deine Antwort</h2>
+    <div class="row">
+      <label>Clara muss <input class="num-input" type="number" id="guess" min="1" max="24" inputmode="numeric"> Socken ziehen.</label>
+      <button class="btn" id="check">Antwort prüfen</button>
+    </div>
+    <p class="status" id="answer" aria-live="polite"></p>
+  </section>
+
+  <div class="row teacher-tools" id="teacherTools" hidden>
+    <span class="label">Lehrermodus aktiv</span>
+    <button class="btn" id="showSolution">Lösung zeigen</button>
+    <button class="btn" id="lock">Lehrermodus beenden</button>
+  </div>
+
+  <section class="solution" id="solution" hidden>
+    <h2>Lösung: 3 Socken</h2>
+    <ol>
+      <li>Socken haben kein links und rechts. Jede schwarze passt zu jeder schwarzen, jede weiße zu jeder weißen.</li>
+      <li>Mit 2 Socken kann Clara Pech haben: eine schwarze und eine weiße.</li>
+      <li>Es gibt nur zwei Farben. Bei 3 Socken müssen also mindestens zwei dieselbe Farbe haben.</li>
+    </ol>
+    <p>Dieses Denkmuster heißt Schubfachprinzip: Legt man mehr Dinge in Schubfächer, als es Schubfächer gibt, landen in einem Fach mindestens zwei.</p>
+  </section>
+</main>
+
+<script src="common.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const socksEl = $('socks'), statusEl = $('status'), drawBtn = $('draw');
+  const NAME = { b: 'schwarze', w: 'weiße' };
+
+  let left, drawn, done;
+  const trials = [];
+
+  function sockSvg(color) {
+    const fill = color === 'b' ? '#16141F' : '#F6F0FF';
+    const line = color === 'b' ? '#8C82A8' : '#191634';
+    return `<svg class="sock" viewBox="0 0 60 92" role="img" aria-label="${NAME[color]} Socke">
+      <path d="M17 3 H41 V50 C41 56 45 58 51 62 C60 68 58 86 45 86 H22 C9 86 7 75 11 66 C15 58 17 54 17 48 Z"
+        fill="${fill}" stroke="${line}" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M17 13 H41 M17 18 H41" stroke="${line}" stroke-width="1.5" opacity=".7"/>
+    </svg>`;
+  }
+
+  function setStatus(text, kind = '') {
+    statusEl.textContent = text;
+    statusEl.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function reset() {
+    left = { b: 12, w: 12 };
+    drawn = [];
+    done = false;
+    socksEl.innerHTML = '<p class="empty-note">Noch keine Socke gezogen.</p>';
+    update();
+    setStatus('Klicke auf „Socke ziehen“.');
+  }
+
+  function pick() {
+    if ($('mode').value === 'unlucky') {
+      const has = c => drawn.includes(c);
+      if (!has('b') && left.b) return 'b';
+      if (!has('w') && left.w) return 'w';
+    }
+    const total = left.b + left.w;
+    return Math.random() * total < left.b ? 'b' : 'w';
+  }
+
+  function draw() {
+    if (done) return;
+    if (drawn.length === 0) socksEl.innerHTML = '';
+    const c = pick();
+    left[c]--;
+    drawn.push(c);
+    socksEl.insertAdjacentHTML('beforeend', sockSvg(c));
+    const el = socksEl.lastElementChild;
+    el.animate([
+      { transform: 'translateX(-40px) scale(.6)', opacity: 0 },
+      { transform: 'none', opacity: 1 }
+    ], { duration: 320, easing: 'cubic-bezier(.3,1.4,.5,1)' });
+
+    const same = drawn.filter(x => x === c).length;
+    if (same >= 2) {
+      done = true;
+      let marked = 0;
+      [...socksEl.children].forEach((s, i) => {
+        if (drawn[i] === c && marked < 2) { s.classList.add('pair'); marked++; }
+      });
+      trials.push(drawn.length);
+      setStatus(`Paar gefunden! Clara hat ${drawn.length} Socken gebraucht.`, 'win');
+    } else {
+      setStatus(`Eine ${NAME[c]} Socke. Noch kein Paar.`);
+    }
+    update();
+  }
+
+  function update() {
+    $('left').textContent = left.b + left.w;
+    drawBtn.disabled = done;
+    $('again').disabled = drawn.length === 0;
+    const t = $('trials');
+    t.hidden = trials.length === 0;
+    if (trials.length) {
+      t.innerHTML = `Bisherige Versuche: ${trials.join(', ')}. Am meisten gebraucht: <b>${Math.max(...trials)}</b> Socken.`;
+    }
+  }
+
+  $('check').addEventListener('click', () => {
+    const n = Number($('guess').value);
+    const a = $('answer');
+    let msg, kind = 'warn';
+    if (!Number.isInteger(n) || n < 1) {
+      msg = 'Gib eine ganze Zahl ein.';
+    } else if (n === 1) {
+      msg = 'Mit einer einzigen Socke gibt es noch kein Paar.';
+    } else if (n === 2) {
+      msg = 'Nicht sicher: Die zwei Socken können verschiedene Farben haben. Probier es mit größtmöglichem Pech aus.';
+    } else if (n === 3) {
+      msg = 'Richtig! Kannst du erklären, warum drei immer reichen?';
+      kind = 'win';
+    } else {
+      msg = `${n} Socken reichen sicher, aber es geht mit weniger. Wie viele braucht Clara im schlimmsten Fall?`;
+    }
+    a.textContent = msg;
+    a.className = 'status ' + kind;
+  });
+  $('guess').addEventListener('keydown', e => { if (e.key === 'Enter') $('check').click(); });
+
+  drawBtn.addEventListener('click', draw);
+  $('again').addEventListener('click', reset);
+  $('mode').addEventListener('change', reset);
+
+  const hideSolution = Raetsel.toggleSolution($('showSolution'), $('solution'));
+  Raetsel.initTeacher(on => { if (!on) hideSolution(); });
+
+  reset();
+})();
+</script>
+</body>
+</html>

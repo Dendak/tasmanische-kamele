@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schachbrett und Dominosteine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  .play{
+    display:grid;
+    grid-template-columns:minmax(0,560px) 1fr;
+    gap:28px;
+    align-items:start;
+    margin:22px 0 18px;
+  }
+  .board-wrap{
+    padding:clamp(10px,2vw,18px);
+    border-radius:20px;
+    background:linear-gradient(160deg,#5A3B24,#3B2A1E);
+  }
+  .board{
+    display:grid;
+    grid-template-columns:repeat(8,1fr);
+    grid-template-rows:repeat(8,1fr);
+    aspect-ratio:1;
+    width:100%;
+  }
+  .cell{
+    border:0;
+    padding:0;
+    margin:0;
+    font:inherit;
+    cursor:pointer;
+    background:#FDCB9E;
+    position:relative;
+  }
+  .cell.dark{background:#D38C47}
+  .board.plain .cell,.board.plain .cell.dark{background:#E9B98A}
+  .cell.cut{background:transparent;cursor:default}
+  .cell.selected{box-shadow:inset 0 0 0 4px var(--night)}
+  .cell.option::after{
+    content:"";
+    position:absolute;
+    inset:32%;
+    border-radius:50%;
+    background:#19163466;
+  }
+  .domino{
+    margin:7%;
+    border-radius:10px;
+    background:var(--paper);
+    border:2px solid var(--night);
+    box-shadow:0 3px 0 #0005;
+    cursor:pointer;
+    position:relative;
+    padding:0;
+    font:inherit;
+  }
+  .domino.h{margin:7% 3.5%}
+  .domino.v{margin:3.5% 7%}
+  .domino::before{
+    content:"";
+    position:absolute;
+    background:var(--night);
+    opacity:.5;
+  }
+  .domino.h::before{left:50%;top:18%;bottom:18%;width:2px;transform:translateX(-50%)}
+  .domino.v::before{top:50%;left:18%;right:18%;height:2px;transform:translateY(-50%)}
+  .domino:hover{background:#FFE9EF}
+  .side h2{font-size:1.15rem;margin:0 0 .4em}
+  .big{font-size:clamp(2.2rem,5vw,3.2rem);font-weight:800;line-height:1}
+  .big small{font-size:1rem;font-weight:600;color:var(--muted)}
+  .side p{color:var(--muted);margin:.2em 0 1em}
+  .tally{
+    display:flex;
+    gap:18px;
+    margin:0 0 16px;
+    padding:10px 14px;
+    border:2px dashed #FFD58A80;
+    border-radius:14px;
+  }
+  .tally span{display:flex;align-items:center;gap:.45em}
+  .swatch{width:1.1em;height:1.1em;border-radius:4px;display:inline-block}
+  @media (max-width:760px){
+    .play{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">← Alle Rätsel</a>
+  <section class="intro">
+    <h1>Schachbrett und Dominosteine</h1>
+    <p>Von einem Schachbrett werden zwei Felder an <strong>diagonal gegenüberliegenden Ecken</strong> abgeschnitten. Es bleiben 62 Felder. Du hast <strong>31 Dominosteine</strong>, jeder bedeckt genau zwei Felder.</p>
+    <p>Kann man alle Felder bedecken? Klicke ein Feld und dann ein Nachbarfeld an, um einen Stein zu legen. Ein Klick auf einen Stein nimmt ihn wieder weg.</p>
+  </section>
+
+  <div class="play">
+    <div class="board-wrap"><div class="board" id="board"></div></div>
+    <div class="side">
+      <div class="big"><span id="placed">0</span> <small>von 31 Steinen gelegt</small></div>
+      <p><span id="free">62</span> Felder sind noch frei.</p>
+
+      <div class="tally" id="tally" hidden aria-live="polite">
+        <span><i class="swatch" style="background:#FDCB9E"></i><b id="freeLight">0</b> helle frei</span>
+        <span><i class="swatch" style="background:#D38C47"></i><b id="freeDark">0</b> dunkle frei</span>
+      </div>
+
+      <p class="status" id="status" aria-live="polite"></p>
+
+      <div class="row">
+        <button class="btn" id="undo">Rückgängig</button>
+        <button class="btn" id="reset">Alle Steine entfernen</button>
+      </div>
+      <div class="settings">
+        <label><input type="checkbox" id="colors" checked> Schachbrettfarben anzeigen</label>
+      </div>
+
+      <section class="ask">
+        <h2>Was meinst du?</h2>
+        <div class="row">
+          <button class="btn" id="yes">Es geht</button>
+          <button class="btn" id="no">Es geht nicht</button>
+        </div>
+        <p class="status" id="answer" aria-live="polite"></p>
+      </section>
+    </div>
+  </div>
+
+  <div class="row">
+    <span class="grow"></span>
+    <button class="btn" id="teacher">Lehrermodus</button>
+  </div>
+
+  <div class="row teacher-tools" id="teacherTools" hidden>
+    <span class="label">Lehrermodus aktiv</span>
+    <button class="btn" id="showSolution">Lösung zeigen</button>
+    <button class="btn" id="count">Freie Felder nach Farbe zählen</button>
+    <button class="btn" id="lock">Lehrermodus beenden</button>
+  </div>
+
+  <section class="solution" id="solution" hidden>
+    <h2>Lösung: Es geht nicht</h2>
+    <ol>
+      <li>Ein Dominostein liegt immer waagrecht oder senkrecht. Er bedeckt deshalb immer <strong>ein helles und ein dunkles</strong> Feld.</li>
+      <li>31 Steine bedecken also genau 31 helle und 31 dunkle Felder.</li>
+      <li>Die beiden abgeschnittenen Ecken haben <strong>dieselbe Farbe</strong>. Übrig bleiben 30 helle und 32 dunkle Felder.</li>
+      <li>30 helle Felder reichen nicht für 31 Steine. Egal wie man legt: Am Ende bleiben zwei dunkle Felder übrig.</li>
+    </ol>
+    <p>Das ist ein Beweis durch Zählen: Man muss nicht alle Möglichkeiten ausprobieren, eine einzige Beobachtung genügt.</p>
+  </section>
+</main>
+
+<script src="common.js"></script>
+<script>
+(() => {
+  const N = 8;
+  const CUT = new Set(['0,0', '7,7']);
+  const $ = id => document.getElementById(id);
+  const boardEl = $('board'), statusEl = $('status');
+  const k = (r, c) => `${r},${c}`;
+  const isDark = (r, c) => (r + c) % 2 === 1;
+
+  let occupied = new Map();
+  let dominoes = [];
+  let selected = null;
+  let history = [];
+  let nextId = 1;
+  let showTally = false;
+  const cells = {};
+
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const b = document.createElement(CUT.has(k(r, c)) ? 'div' : 'button');
+      b.className = 'cell' + (isDark(r, c) ? ' dark' : '') + (CUT.has(k(r, c)) ? ' cut' : '');
+      b.style.gridRow = r + 1;
+      b.style.gridColumn = c + 1;
+      if (!CUT.has(k(r, c))) {
+        b.setAttribute('aria-label', `Feld Zeile ${r + 1}, Spalte ${c + 1}`);
+        b.addEventListener('click', () => clickCell(r, c));
+        cells[k(r, c)] = b;
+      }
+      boardEl.appendChild(b);
+    }
+  }
+
+  const free = (r, c) => r >= 0 && c >= 0 && r < N && c < N && !CUT.has(k(r, c)) && !occupied.has(k(r, c));
+  const neighbours = (r, c) => [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]].filter(([a, b]) => free(a, b));
+
+  function setStatus(text, kind = '') {
+    statusEl.textContent = text;
+    statusEl.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function clickCell(r, c) {
+    if (!free(r, c)) return;
+    if (selected && selected[0] === r && selected[1] === c) {
+      selected = null;
+    } else if (selected && neighbours(...selected).some(([a, b]) => a === r && b === c)) {
+      addDomino(selected, [r, c], true);
+      selected = null;
+    } else {
+      selected = [r, c];
+      if (neighbours(r, c).length === 0) {
+        setStatus('Dieses Feld hat keinen freien Nachbarn. Hier passt kein Stein mehr hin.', 'warn');
+        selected = null;
+        cells[k(r, c)].animate([
+          { transform: 'scale(1)' }, { transform: 'scale(.85)' }, { transform: 'scale(1)' }
+        ], { duration: 300 });
+        update(false);
+        return;
+      }
+    }
+    update();
+  }
+
+  function addDomino(a, b, record) {
+    const d = { id: nextId++, a, b };
+    const el = document.createElement('button');
+    const horiz = a[0] === b[0];
+    el.className = 'domino ' + (horiz ? 'h' : 'v');
+    el.style.gridRow = `${Math.min(a[0], b[0]) + 1} / span ${horiz ? 1 : 2}`;
+    el.style.gridColumn = `${Math.min(a[1], b[1]) + 1} / span ${horiz ? 2 : 1}`;
+    el.setAttribute('aria-label', 'Dominostein entfernen');
+    el.addEventListener('click', () => { removeDomino(d, true); selected = null; update(); });
+    d.el = el;
+    boardEl.appendChild(el);
+    el.animate([{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 180, easing: 'ease-out' });
+    dominoes.push(d);
+    occupied.set(k(...a), d);
+    occupied.set(k(...b), d);
+    if (record) history.push({ type: 'add', d });
+  }
+
+  function removeDomino(d, record) {
+    d.el.remove();
+    dominoes = dominoes.filter(x => x !== d);
+    occupied.delete(k(...d.a));
+    occupied.delete(k(...d.b));
+    if (record) history.push({ type: 'remove', d });
+  }
+
+  function undo() {
+    const last = history.pop();
+    if (!last) return;
+    selected = null;
+    if (last.type === 'add') {
+      removeDomino(last.d, false);
+    } else {
+      addDomino(last.d.a, last.d.b, false);
+      const fresh = dominoes[dominoes.length - 1];
+      history.forEach(h => { if (h.d === last.d) h.d = fresh; });
+    }
+    update();
+  }
+
+  function reset() {
+    dominoes.slice().forEach(d => removeDomino(d, false));
+    history = [];
+    selected = null;
+    update();
+  }
+
+  function update(withStatus = true) {
+    const opts = selected ? neighbours(...selected).map(([a, b]) => k(a, b)) : [];
+    let freeLight = 0, freeDark = 0, anyPair = false;
+    Object.entries(cells).forEach(([key, el]) => {
+      const [r, c] = key.split(',').map(Number);
+      el.classList.toggle('selected', !!selected && selected[0] === r && selected[1] === c);
+      el.classList.toggle('option', opts.includes(key));
+      if (free(r, c)) {
+        if (isDark(r, c)) freeDark++; else freeLight++;
+        if (!anyPair && (free(r, c + 1) || free(r + 1, c))) anyPair = true;
+      }
+    });
+    const freeCount = freeLight + freeDark;
+    $('placed').textContent = dominoes.length;
+    $('free').textContent = freeCount;
+    $('freeLight').textContent = freeLight;
+    $('freeDark').textContent = freeDark;
+    $('undo').disabled = history.length === 0;
+    $('reset').disabled = dominoes.length === 0;
+    if (!withStatus) return;
+
+    if (freeCount === 0) {
+      setStatus('Alle Felder sind bedeckt!', 'win');
+    } else if (selected) {
+      setStatus('Jetzt ein markiertes Nachbarfeld anklicken.');
+    } else if (!anyPair) {
+      setStatus(dominoes.length === 30
+        ? 'Kein Stein passt mehr. Genau zwei Felder bleiben übrig. Zufall, oder geht es nie?'
+        : `Kein Stein passt mehr. ${freeCount} Felder bleiben frei. Nimm Steine weg und versuch es anders.`, 'warn');
+    } else if (dominoes.length === 0) {
+      setStatus('Klicke ein Feld an, um den ersten Stein zu legen.');
+    } else {
+      setStatus(`Noch ${31 - dominoes.length} Steine übrig.`);
+    }
+  }
+
+  $('undo').addEventListener('click', undo);
+  $('reset').addEventListener('click', reset);
+  $('colors').addEventListener('change', e => boardEl.classList.toggle('plain', !e.target.checked));
+
+  const answer = $('answer');
+  $('yes').addEventListener('click', () => {
+    answer.className = 'status';
+    answer.textContent = 'Dann zeig es: Lege alle 31 Steine auf das Brett.';
+  });
+  $('no').addEventListener('click', () => {
+    answer.className = 'status win';
+    answer.textContent = 'Richtig, es geht nicht. Aber kannst du auch erklären, warum? Ausprobieren allein ist noch kein Beweis.';
+  });
+
+  const tally = $('tally'), countBtn = $('count');
+  countBtn.addEventListener('click', () => {
+    showTally = !showTally;
+    tally.hidden = !showTally;
+    countBtn.textContent = showTally ? 'Zählung ausblenden' : 'Freie Felder nach Farbe zählen';
+  });
+
+  const hideSolution = Raetsel.toggleSolution($('showSolution'), $('solution'));
+  Raetsel.initTeacher(on => {
+    if (!on) {
+      hideSolution();
+      showTally = false;
+      tally.hidden = true;
+      countBtn.textContent = 'Freie Felder nach Farbe zählen';
+    }
+  });
+
+  update();
+})();
+</script>
+</body>
+</html>

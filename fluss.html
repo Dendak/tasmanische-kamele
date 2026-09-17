@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Die Flussüberquerung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="common.css">
+<style>
+  .scene{
+    position:relative;
+    display:grid;
+    grid-template-columns:27% 1fr 27%;
+    min-height:clamp(210px,26vw,290px);
+    margin:22px 0 18px;
+    border-radius:20px;
+    overflow:hidden;
+    background:linear-gradient(180deg, var(--night) 0%, var(--dusk) 55%, var(--plum) 100%);
+  }
+  .bank{
+    position:relative;
+    display:flex;
+    flex-wrap:wrap;
+    align-content:flex-end;
+    align-items:flex-end;
+    justify-content:center;
+    gap:2px 4px;
+    padding:14px 6px 70px;
+  }
+  .bank::after{
+    content:"";
+    position:absolute;
+    left:0;right:0;bottom:0;
+    height:64px;
+    background:linear-gradient(180deg,#4E8F55 0 12px,#2F5D3A 12px 26px,#3B2A1E 26px 100%);
+    z-index:0;
+  }
+  .bank.l::after{border-radius:0 18px 0 0}
+  .bank.r::after{border-radius:18px 0 0 0}
+  .river{position:relative}
+  .water{
+    position:absolute;
+    left:0;right:0;bottom:0;
+    height:52px;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 22px, #FFFFFF22 22px 34px) 0 10px / 100% 3px no-repeat,
+      repeating-linear-gradient(90deg, transparent 0 40px, #FFFFFF18 40px 52px) 14px 26px / 100% 3px no-repeat,
+      linear-gradient(180deg,#3FB6C8,#1E6F8C);
+  }
+  .boat{
+    position:absolute;
+    bottom:24px;
+    left:0;
+    width:48%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    transition:transform 1.1s cubic-bezier(.45,.05,.35,1);
+    z-index:2;
+  }
+  .boat.right{transform:translateX(108.3333%)}
+  .load{
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    gap:0 2px;
+    min-height:3em;
+    margin-bottom:-.45em;
+  }
+  .hull{
+    width:100%;
+    height:34px;
+    background:linear-gradient(180deg,#B57A45 0 30%,#8A5A31 30% 36%,#A06A3A 36% 100%);
+    clip-path:polygon(0 0,100% 0,86% 100%,14% 100%);
+  }
+  .item{
+    position:relative;
+    z-index:1;
+    font:inherit;
+    background:none;
+    border:0;
+    padding:2px 3px;
+    color:var(--paper);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    line-height:1;
+    border-radius:10px;
+    cursor:pointer;
+  }
+  .item:disabled{cursor:default}
+  .item .ic{font-size:clamp(1.8rem,4.4vw,3.3rem)}
+  .item.tall .ic{font-size:clamp(2.3rem,5.8vw,4.3rem)}
+  .item.small .ic{font-size:clamp(1.2rem,2.9vw,2.1rem)}
+  .item .nm{font-size:clamp(.62rem,1.3vw,.78rem);color:var(--paper);margin-top:3px;white-space:nowrap}
+  .boat .item .nm{display:none}
+  .ferry{cursor:default}
+  .item.eaten .ic{filter:grayscale(1);opacity:.35}
+  .item.eaten::after{
+    content:"";
+    position:absolute;
+    left:15%;right:15%;top:40%;
+    height:4px;
+    background:var(--bad);
+    transform:rotate(-20deg);
+    border-radius:2px;
+  }
+  .cross-row{display:flex;justify-content:center;margin:-4px 0 16px}
+  @media (max-width:640px){
+    .scene{grid-template-columns:30% 1fr 30%}
+    .item .nm{display:none}
+  }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">← Alle Rätsel</a>
+  <section class="intro">
+    <h1 id="title">Die Flussüberquerung</h1>
+    <div id="introText"></div>
+  </section>
+
+  <div class="scene" id="scene">
+    <div class="bank l" id="bankL" aria-label="Linkes Ufer"></div>
+    <div class="river">
+      <div class="water" aria-hidden="true"></div>
+      <div class="boat" id="boat">
+        <div class="load" id="load"></div>
+        <div class="hull" aria-hidden="true"></div>
+      </div>
+    </div>
+    <div class="bank r" id="bankR" aria-label="Rechtes Ufer"></div>
+  </div>
+
+  <div class="cross-row"><button class="btn primary" id="cross">Übersetzen</button></div>
+
+  <p class="status" id="status" aria-live="polite"></p>
+
+  <div class="row">
+    <span class="counter grow"><b id="count">0</b> Überfahrten</span>
+    <button class="btn" id="undo">Rückgängig</button>
+    <button class="btn" id="reset">Neu starten</button>
+    <button class="btn" id="teacher">Lehrermodus</button>
+  </div>
+
+  <div class="row teacher-tools" id="teacherTools" hidden>
+    <span class="label">Lehrermodus aktiv</span>
+    <button class="btn" id="showSolution">Lösung zeigen</button>
+    <button class="btn" id="demo">Lösung vorführen</button>
+    <button class="btn" id="lock">Lehrermodus beenden</button>
+  </div>
+
+  <section class="solution" id="solution" hidden>
+    <h2>Lösung</h2>
+    <ol id="solutionList"></ol>
+    <p id="solutionNote"></p>
+  </section>
+</main>
+
+<script src="common.js"></script>
+<script>
+(() => {
+  const VARIANTS = {
+    bauer: {
+      title: 'Die Flussüberquerung',
+      intro: [
+        'Ein Mann steht mit einem <strong>Wolf</strong>, einer <strong>Ziege</strong> und einer <strong>Karotte</strong> am linken Ufer. Sein Boot trägt ihn und <strong>ein</strong> weiteres Objekt.',
+        'Bleiben Wolf und Ziege oder Ziege und Karotte ohne den Mann zurück, wird einer gefressen.',
+        'Klicke ein Objekt an, um es ins Boot zu setzen oder wieder auszuladen. Mit „Übersetzen“ rudert der Mann los.'
+      ],
+      ferryman: { icon: '🤠', name: 'Mann' },
+      items: [
+        { id: 'wolf', icon: '🐺', name: 'Wolf' },
+        { id: 'ziege', icon: '🐐', name: 'Ziege' },
+        { id: 'karotte', icon: '🥕', name: 'Karotte' }
+      ],
+      capacity: load => load.length > 1 ? 'Neben dem Mann passt nur ein Objekt ins Boot.' : null,
+      needsDriver: false,
+      danger(ids) {
+        const h = new Set(ids);
+        if (h.has('wolf') && h.has('ziege')) return { eater: 'wolf', eaten: 'ziege', msg: 'Oh nein! Der Wolf hat die Ziege gefressen.' };
+        if (h.has('ziege') && h.has('karotte')) return { eater: 'ziege', eaten: 'karotte', msg: 'Oh nein! Die Ziege hat die Karotte gefressen.' };
+        return null;
+      },
+      optimal: 7,
+      solution: [['ziege'], [], ['wolf'], ['ziege'], ['karotte'], [], ['ziege']],
+      steps: [
+        'Die Ziege hinüberbringen.',
+        'Allein zurückrudern.',
+        'Den Wolf hinüberbringen.',
+        'Die Ziege wieder mit zurücknehmen.',
+        'Die Karotte hinüberbringen.',
+        'Allein zurückrudern.',
+        'Die Ziege hinüberbringen.'
+      ],
+      note: 'In Schritt 3 kann man auch zuerst die Karotte und in Schritt 5 dann den Wolf holen. Beide Wege brauchen 7 Überfahrten. Der Trick: Die Ziege darf wieder zurückfahren.'
+    },
+    roboter: {
+      title: 'Die Flussüberquerung 2',
+      intro: [
+        'Zwei <strong>Tallbots</strong> (große Roboter) und zwei <strong>Smallbots</strong> (kleine Roboter) wollen über den Fluss.',
+        'Im Boot dürfen höchstens zwei Smallbots oder ein einziger Tallbot sein. Ohne Roboter an Bord bewegt sich das Boot nicht.',
+        'Klicke einen Roboter an, um ihn ins Boot zu setzen oder wieder auszuladen. Mit „Übersetzen“ fährt das Boot los.'
+      ],
+      ferryman: null,
+      items: [
+        { id: 't1', icon: '🤖', name: 'Tallbot 1', size: 'tall' },
+        { id: 't2', icon: '🤖', name: 'Tallbot 2', size: 'tall' },
+        { id: 's1', icon: '🤖', name: 'Smallbot 1', size: 'small' },
+        { id: 's2', icon: '🤖', name: 'Smallbot 2', size: 'small' }
+      ],
+      capacity(load) {
+        const tall = load.filter(i => i.size === 'tall').length;
+        const small = load.length - tall;
+        if (tall > 1 || (tall === 1 && small > 0)) return 'Ein Tallbot braucht das ganze Boot und fährt immer allein.';
+        if (small > 2) return 'Höchstens zwei Smallbots passen ins Boot.';
+        return null;
+      },
+      needsDriver: true,
+      danger: () => null,
+      optimal: 9,
+      solution: [['s1', 's2'], ['s1'], ['t1'], ['s2'], ['s1', 's2'], ['s1'], ['t2'], ['s2'], ['s1', 's2']],
+      steps: [
+        'Beide Smallbots fahren hinüber.',
+        'Ein Smallbot fährt zurück.',
+        'Ein Tallbot fährt hinüber.',
+        'Der andere Smallbot fährt zurück.',
+        'Beide Smallbots fahren hinüber.',
+        'Ein Smallbot fährt zurück.',
+        'Der zweite Tallbot fährt hinüber.',
+        'Der andere Smallbot fährt zurück.',
+        'Beide Smallbots fahren hinüber.'
+      ],
+      note: 'Die Smallbots sind die „Fährleute“: Nach jedem Tallbot muss ein Smallbot das Boot zurückbringen. Das ergibt 9 Überfahrten.'
+    }
+  };
+
+  const key = new URLSearchParams(location.search).get('v') === 'roboter' ? 'roboter' : 'bauer';
+  const V = VARIANTS[key];
+  const { wait } = Raetsel;
+  const $ = id => document.getElementById(id);
+
+  document.title = V.title;
+  $('title').textContent = V.title;
+  $('introText').innerHTML = V.intro.map(p => `<p>${p}</p>`).join('');
+  $('solutionList').innerHTML = V.steps.map(s => `<li>${s}</li>`).join('');
+  $('solutionNote').textContent = V.note;
+
+  const bankL = $('bankL'), bankR = $('bankR'), load = $('load'), boatEl = $('boat');
+  const statusEl = $('status'), countEl = $('count');
+  const crossBtn = $('cross'), undoBtn = $('undo'), resetBtn = $('reset'), demoBtn = $('demo');
+
+  let pos = {}, boat = 'L', crossings = 0, history = [];
+  let busy = false, lost = null, won = false, demoRunning = false;
+
+  const byId = Object.fromEntries(V.items.map(i => [i.id, i]));
+  const els = {};
+  V.items.forEach(i => {
+    const b = document.createElement('button');
+    b.className = 'item' + (i.size ? ' ' + i.size : '');
+    b.innerHTML = `<span class="ic" aria-hidden="true">${i.icon}</span><span class="nm">${i.name}</span>`;
+    b.addEventListener('click', () => { if (!demoRunning) toggle(i.id); });
+    els[i.id] = b;
+  });
+  let ferryEl = null;
+  if (V.ferryman) {
+    ferryEl = document.createElement('span');
+    ferryEl.className = 'item ferry';
+    ferryEl.innerHTML = `<span class="ic" aria-hidden="true">${V.ferryman.icon}</span>`;
+    ferryEl.setAttribute('aria-label', V.ferryman.name + ' im Boot');
+  }
+
+  const side = s => s === 'L' ? 'links' : 'rechts';
+  const inBoat = () => V.items.filter(i => pos[i.id] === 'B').map(i => i.id);
+
+  function setStatus(text, kind = '') {
+    statusEl.textContent = text;
+    statusEl.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function shake(el) {
+    el.animate([
+      { transform: 'translateX(0)' }, { transform: 'translateX(-8px)' },
+      { transform: 'translateX(8px)' }, { transform: 'translateX(-4px)' },
+      { transform: 'translateX(0)' }
+    ], { duration: 360, easing: 'ease-in-out' });
+  }
+
+  function render() {
+    load.innerHTML = '';
+    if (ferryEl) load.appendChild(ferryEl);
+    V.items.forEach(i => {
+      const p = pos[i.id];
+      const target = p === 'B' ? load : p === 'L' ? bankL : bankR;
+      target.appendChild(els[i.id]);
+      const where = p === 'B' ? 'im Boot' : 'am ' + (p === 'L' ? 'linken' : 'rechten') + ' Ufer';
+      els[i.id].setAttribute('aria-label', `${i.name}, ${where}`);
+      els[i.id].disabled = busy || !!lost || won;
+      els[i.id].classList.toggle('eaten', !!lost && lost.eaten === i.id);
+    });
+    boatEl.classList.toggle('right', boat === 'R');
+    crossBtn.textContent = boat === 'L' ? 'Übersetzen nach rechts' : 'Übersetzen nach links';
+    crossBtn.disabled = busy || !!lost || won || demoRunning;
+    undoBtn.disabled = busy || history.length === 0 || demoRunning;
+    resetBtn.disabled = demoRunning;
+    countEl.textContent = crossings;
+  }
+
+  function reset() {
+    V.items.forEach(i => { pos[i.id] = 'L'; });
+    boat = 'L';
+    crossings = 0;
+    history = [];
+    lost = null;
+    won = false;
+    busy = false;
+    render();
+    setStatus('Das Boot liegt am linken Ufer. Wer fährt zuerst mit?');
+  }
+
+  function toggle(id) {
+    if (busy || lost || won) return;
+    const item = byId[id];
+    if (pos[id] === 'B') {
+      pos[id] = boat;
+      render();
+      setStatus(`${item.name} steigt wieder aus.`);
+      return;
+    }
+    if (pos[id] !== boat) {
+      shake(els[id]);
+      setStatus(`${item.name} steht am anderen Ufer. Das Boot liegt gerade ${side(boat)}.`, 'warn');
+      return;
+    }
+    const err = V.capacity([...inBoat(), id].map(x => byId[x]));
+    if (err) {
+      shake(els[id]);
+      setStatus(err, 'warn');
+      return;
+    }
+    pos[id] = 'B';
+    render();
+    setStatus(`${item.name} steigt ins Boot.`);
+  }
+
+  async function cross() {
+    if (busy || lost || won) return;
+    const cargo = inBoat();
+    if (V.needsDriver && cargo.length === 0) {
+      shake(boatEl);
+      setStatus('Das Boot bewegt sich nur, wenn ein Roboter an Bord ist.', 'warn');
+      return;
+    }
+    const snap = { ...pos };
+    cargo.forEach(id => { snap[id] = boat; });
+    history.push({ pos: snap, boat });
+    busy = true;
+    const departed = boat;
+    boat = boat === 'L' ? 'R' : 'L';
+    render();
+    await wait(1150);
+    cargo.forEach(id => { pos[id] = boat; });
+    crossings++;
+    busy = false;
+    evaluate(departed);
+    render();
+  }
+
+  function evaluate(departed) {
+    if (V.ferryman) {
+      const alone = V.items.filter(i => pos[i.id] === departed).map(i => i.id);
+      const d = V.danger(alone);
+      if (d) {
+        lost = d;
+        setStatus(`${d.msg} Mach die Überfahrt rückgängig oder starte neu.`, 'warn');
+        const bite = els[d.eater];
+        bite.animate([
+          { transform: 'scale(1) rotate(0)' }, { transform: 'scale(1.25) rotate(-8deg)' },
+          { transform: 'scale(1) rotate(0)' }, { transform: 'scale(1.25) rotate(8deg)' },
+          { transform: 'scale(1) rotate(0)' }
+        ], { duration: 700 });
+        return;
+      }
+    }
+    if (V.items.every(i => pos[i.id] === 'R')) {
+      won = true;
+      setStatus(crossings <= V.optimal
+        ? `Geschafft in ${crossings} Überfahrten! Weniger geht nicht.`
+        : `Geschafft in ${crossings} Überfahrten! Es geht auch mit ${V.optimal}.`, 'win');
+      return;
+    }
+    setStatus(`Das Boot liegt jetzt ${side(boat)}. Wer fährt als Nächstes mit?`);
+  }
+
+  function undo() {
+    if (busy || demoRunning) return;
+    const s = history.pop();
+    if (!s) return;
+    pos = { ...s.pos };
+    boat = s.boat;
+    crossings--;
+    lost = null;
+    won = false;
+    render();
+    setStatus(`Überfahrt zurückgenommen. Das Boot liegt wieder ${side(boat)}.`);
+  }
+
+  async function runDemo() {
+    if (demoRunning) { demoRunning = false; return; }
+    reset();
+    demoRunning = true;
+    demoBtn.textContent = 'Vorführung stoppen';
+    render();
+    setStatus('Die Vorführung läuft …');
+    for (const step of V.solution) {
+      for (const id of step) {
+        await wait(500);
+        if (!demoRunning) break;
+        toggle(id);
+      }
+      await wait(500);
+      if (!demoRunning) break;
+      await cross();
+      await wait(400);
+      if (!demoRunning) break;
+    }
+    demoRunning = false;
+    demoBtn.textContent = 'Lösung vorführen';
+    render();
+  }
+
+  crossBtn.addEventListener('click', cross);
+  undoBtn.addEventListener('click', undo);
+  resetBtn.addEventListener('click', reset);
+  demoBtn.addEventListener('click', runDemo);
+  const hideSolution = Raetsel.toggleSolution($('showSolution'), $('solution'));
+  Raetsel.initTeacher(on => {
+    if (!on) {
+      hideSolution();
+      if (demoRunning) demoRunning = false;
+    }
+  });
+
+  reset();
+})();
+</script>
+</body>
+</html>
